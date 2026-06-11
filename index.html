@@ -308,7 +308,7 @@
       // ★ 翻訳専用エンドポイント
       ws = new WebSocket(
         'wss://api.openai.com/v1/realtime/translations?model=gpt-realtime-translate',
-        ['realtime', `openai-insecure-api-key.${apiKey}`, 'openai-beta.realtime-v1']
+        ['realtime', `openai-insecure-api-key.${apiKey}`]
       );
 
       ws.onopen = async () => {
