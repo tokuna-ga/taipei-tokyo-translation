@@ -356,7 +356,7 @@
           if (ws && ws.readyState === WebSocket.OPEN) {
             const pcm = float32ToPCM16(e.data);
             ws.send(JSON.stringify({
-              type: 'input_audio_buffer.append',
+              type: 'session.input_audio_buffer.append',
               audio: arrayBufferToBase64(pcm)
             }));
           }
