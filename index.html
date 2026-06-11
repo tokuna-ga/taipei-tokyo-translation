@@ -240,21 +240,29 @@
     dot.className = state;
   }
 
+  let interimText = '';
+
   function addSubtitle(text, isInterim = false) {
     const box = document.getElementById('subtitleBox');
-    
-    // interim行は更新、finalは追加
-    let line = box.querySelector('.interim');
+
     if (isInterim) {
+      // deltaを追記してinterim行を更新
+      interimText += text;
+      let line = box.querySelector('.interim');
       if (!line) {
         line = document.createElement('div');
         line.className = 'subtitle-line interim';
         box.appendChild(line);
       }
-      line.textContent = text;
+      line.textContent = interimText;
     } else {
-      if (line) line.remove();
-      if (text.trim()) {
+      // 確定：interim行を確定行に昇格
+      interimText = '';
+      const line = box.querySelector('.interim');
+      if (line) {
+        line.classList.remove('interim');
+        if (text.trim()) line.textContent = text;
+      } else if (text.trim()) {
         const finalLine = document.createElement('div');
         finalLine.className = 'subtitle-line';
         finalLine.textContent = text;
@@ -264,15 +272,11 @@
 
     // 最新行にスクロール
     box.scrollTop = box.scrollHeight;
-
-    // 古い行を削除（最大10行）
-    const lines = box.querySelectorAll('.subtitle-line:not(.interim)');
-    if (lines.length > 10) lines[0].remove();
   }
 
   function clearSubtitles() {
-    const box = document.getElementById('subtitleBox');
-    box.querySelectorAll('.subtitle-line').forEach(l => l.remove());
+    interimText = '';
+    document.getElementById('subtitleBox').querySelectorAll('.subtitle-line').forEach(l => l.remove());
   }
 
   // ── Float32 → PCM16 変換 ──
