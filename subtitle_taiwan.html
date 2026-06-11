@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>即時翻譯字幕 — 台灣端</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0f0f0f;
+    color: #f0f0f0;
+    font-family: 'Segoe UI', 'Noto Sans TC', sans-serif;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── 設定パネル ── */
+  #setup {
+    padding: 32px;
+    background: #1a1a1a;
+    border-bottom: 1px solid #2a2a2a;
+  }
+
+  #setup h1 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 20px;
+    letter-spacing: 0.05em;
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+
+  .field label {
+    font-size: 12px;
+    color: #888;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .field input, .field select {
+    background: #111;
+    border: 1px solid #333;
+    color: #f0f0f0;
+    padding: 10px 14px;
+    border-radius: 6px;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .field input:focus, .field select:focus {
+    border-color: #4a9eff;
+  }
+
+  .row {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+  }
+
+  .row .field { flex: 1; }
+
+  button {
+    padding: 10px 24px;
+    border-radius: 6px;
+    border: none;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.03em;
+  }
+
+  #startBtn {
+    background: #4a9eff;
+    color: #fff;
+    min-width: 120px;
+  }
+
+  #startBtn:hover { background: #3a8eef; }
+  #startBtn:disabled { background: #333; color: #666; cursor: not-allowed; }
+
+  #stopBtn {
+    background: #ff4a4a;
+    color: #fff;
+    min-width: 120px;
+    display: none;
+  }
+
+  #stopBtn:hover { background: #ef3a3a; }
+
+  /* ── ステータス ── */
+  #status {
+    padding: 10px 32px;
+    font-size: 12px;
+    color: #666;
+    background: #141414;
+    border-bottom: 1px solid #222;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  #statusDot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #444;
+    transition: background 0.3s;
+  }
+
+  #statusDot.active { background: #4aff7a; box-shadow: 0 0 6px #4aff7a88; }
+  #statusDot.error { background: #ff4a4a; }
+
+  /* ── 字幕エリア ── */
+  #subtitleArea {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 32px;
+    overflow: hidden;
+  }
+
+  #subtitleBox {
+    max-height: 60vh;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .subtitle-line {
+    background: rgba(0,0,0,0.7);
+    border-left: 3px solid #4a9eff;
+    padding: 14px 20px;
+    border-radius: 0 8px 8px 0;
+    font-size: 28px;
+    line-height: 1.5;
+    color: #fff;
+    animation: fadeIn 0.3s ease;
+  }
+
+  .subtitle-line.interim {
+    border-left-color: #888;
+    color: #aaa;
+    font-size: 24px;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  #clearBtn {
+    background: transparent;
+    border: 1px solid #333;
+    color: #666;
+    font-size: 12px;
+    padding: 6px 14px;
+    align-self: flex-start;
+    margin-bottom: 12px;
+  }
+
+  #clearBtn:hover { border-color: #555; color: #aaa; }
+</style>
+</head>
+<body>
+
+<div id="setup">
+  <h1>即時翻譯字幕 — 台灣端（日語 → 繁體中文）</h1>
+  <div class="row">
+    <div class="field">
+      <label>OpenAI API Key</label>
+      <input type="password" id="apiKey" placeholder="sk-..." />
+    </div>
+    <div class="field" style="max-width:220px">
+      <label>音聲輸入裝置</label>
+      <select id="deviceSelect"></select>
+    </div>
+  </div>
+  <div style="display:flex; gap:12px; margin-top:4px;">
+    <button id="startBtn">▶ 開始翻譯</button>
+    <button id="stopBtn">■ 停止</button>
+  </div>
+</div>
+
+<div id="status">
+  <div id="statusDot"></div>
+  <span id="statusText">待機中</span>
+</div>
+
+<div id="subtitleArea">
+  <div id="subtitleBox">
+    <button id="clearBtn" onclick="clearSubtitles()">字幕をクリア</button>
+  </div>
+</div>
+
+<script>
+  // ── デバイス一覧取得 ──
+  async function loadDevices() {
+    try {
+      await navigator.mediaDevices.getUserMedia({ audio: true });
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const sel = document.getElementById('deviceSelect');
+      devices.filter(d => d.kind === 'audioinput').forEach(d => {
+        const opt = document.createElement('option');
+        opt.value = d.deviceId;
+        opt.textContent = d.label || `マイク ${sel.options.length + 1}`;
+        // VoiceMeeter B1を優先選択
+        if (d.label && d.label.toLowerCase().includes('voicemeeter')) {
+          opt.selected = true;
+        }
+        sel.appendChild(opt);
+      });
+    } catch(e) {
+      setStatus('マイクへのアクセスが必要です', 'error');
+    }
+  }
+
+  loadDevices();
+
+  // ── 状態管理 ──
+  let ws = null;
+  let mediaStream = null;
+  let audioContext = null;
+  let processor = null;
+
+  function setStatus(text, state = '') {
+    document.getElementById('statusText').textContent = text;
+    const dot = document.getElementById('statusDot');
+    dot.className = state;
+  }
+
+  function addSubtitle(text, isInterim = false) {
+    const box = document.getElementById('subtitleBox');
+    
+    // interim行は更新、finalは追加
+    let line = box.querySelector('.interim');
+    if (isInterim) {
+      if (!line) {
+        line = document.createElement('div');
+        line.className = 'subtitle-line interim';
+        box.appendChild(line);
+      }
+      line.textContent = text;
+    } else {
+      if (line) line.remove();
+      if (text.trim()) {
+        const finalLine = document.createElement('div');
+        finalLine.className = 'subtitle-line';
+        finalLine.textContent = text;
+        box.appendChild(finalLine);
+      }
+    }
+
+    // 最新行にスクロール
+    box.scrollTop = box.scrollHeight;
+
+    // 古い行を削除（最大10行）
+    const lines = box.querySelectorAll('.subtitle-line:not(.interim)');
+    if (lines.length > 10) lines[0].remove();
+  }
+
+  function clearSubtitles() {
+    const box = document.getElementById('subtitleBox');
+    box.querySelectorAll('.subtitle-line').forEach(l => l.remove());
+  }
+
+  // ── Float32 → PCM16 変換 ──
+  function float32ToPCM16(float32Array) {
+    const buffer = new ArrayBuffer(float32Array.length * 2);
+    const view = new DataView(buffer);
+    for (let i = 0; i < float32Array.length; i++) {
+      const s = Math.max(-1, Math.min(1, float32Array[i]));
+      view.setInt16(i * 2, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+    }
+    return buffer;
+  }
+
+  function arrayBufferToBase64(buffer) {
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    return btoa(binary);
+  }
+
+  // ── 開始 ──
+  document.getElementById('startBtn').onclick = async () => {
+    const apiKey = document.getElementById('apiKey').value.trim();
+    if (!apiKey) { alert('APIキーを入力してください'); return; }
+
+    const deviceId = document.getElementById('deviceSelect').value;
+
+    document.getElementById('startBtn').style.display = 'none';
+    document.getElementById('stopBtn').style.display = 'inline-block';
+    setStatus('接続中...', '');
+
+    try {
+      // WebSocket接続
+      ws = new WebSocket(
+        'wss://api.openai.com/v1/realtime?model=gpt-realtime-translate',
+        ['realtime', `openai-insecure-api-key.${apiKey}`, 'openai-beta.realtime-v1']
+      );
+
+      ws.onopen = async () => {
+        setStatus('接続完了、マイク起動中...', 'active');
+
+        // セッション設定
+        ws.send(JSON.stringify({
+          type: 'session.update',
+          session: {
+            input_audio_format: 'pcm16',
+            input_audio_transcription: { model: 'whisper-1' },
+            turn_detection: {
+              type: 'server_vad',
+              threshold: 0.5,
+              prefix_padding_ms: 300,
+              silence_duration_ms: 800
+            },
+            // 翻訳設定：日本語→繁体字中国語
+            instructions: 'Translate Japanese speech to Traditional Chinese (繁體中文). Output only the translated text, no explanations.',
+            input_language: 'ja',
+            output_language: 'zh-TW'
+          }
+        }));
+
+        // マイク起動
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+          audio: { deviceId: deviceId ? { exact: deviceId } : undefined }
+        });
+
+        audioContext = new AudioContext({ sampleRate: 24000 });
+        const source = audioContext.createMediaStreamSource(mediaStream);
+        processor = audioContext.createScriptProcessor(4096, 1, 1);
+
+        processor.onaudioprocess = (e) => {
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            const pcm = float32ToPCM16(e.inputBuffer.getChannelData(0));
+            ws.send(JSON.stringify({
+              type: 'input_audio_buffer.append',
+              audio: arrayBufferToBase64(pcm)
+            }));
+          }
+        };
+
+        source.connect(processor);
+        processor.connect(audioContext.destination);
+        setStatus('翻訳中...', 'active');
+      };
+
+      ws.onmessage = (event) => {
+        const msg = JSON.parse(event.data);
+
+        // 翻訳テキスト（途中）
+        if (msg.type === 'response.audio_transcript.delta' && msg.delta) {
+          addSubtitle(msg.delta, true);
+        }
+
+        // 翻訳テキスト（確定）
+        if (msg.type === 'response.audio_transcript.done' && msg.transcript) {
+          addSubtitle(msg.transcript, false);
+        }
+
+        // 文字起こし（interim）
+        if (msg.type === 'conversation.item.input_audio_transcription.delta') {
+          // 必要なら元の日本語も表示できる
+        }
+      };
+
+      ws.onerror = () => setStatus('接続エラー', 'error');
+      ws.onclose = () => {
+        setStatus('切断されました', '');
+        stopAll();
+      };
+
+    } catch(e) {
+      setStatus('エラー: ' + e.message, 'error');
+      stopAll();
+    }
+  };
+
+  // ── 停止 ──
+  document.getElementById('stopBtn').onclick = stopAll;
+
+  function stopAll() {
+    if (processor) { processor.disconnect(); processor = null; }
+    if (audioContext) { audioContext.close(); audioContext = null; }
+    if (mediaStream) { mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null; }
+    if (ws) { ws.close(); ws = null; }
+    document.getElementById('startBtn').style.display = 'inline-block';
+    document.getElementById('stopBtn').style.display = 'none';
+    setStatus('停止しました', '');
+  }
+</script>
+</body>
+</html>
