@@ -246,15 +246,34 @@
     const box = document.getElementById('subtitleBox');
 
     if (isInterim) {
-      // deltaを追記してinterim行を更新
       interimText += text;
-      let line = box.querySelector('.interim');
-      if (!line) {
-        line = document.createElement('div');
-        line.className = 'subtitle-line interim';
-        box.appendChild(line);
+
+      // 句読点（。！？…）で行を確定して改行
+      const breakPoints = ['。', '！', '？', '…', '!', '?'];
+      const hasBreak = breakPoints.some(p => text.includes(p));
+
+      if (hasBreak) {
+        // 現在のinterim行を確定
+        const line = box.querySelector('.interim');
+        if (line) {
+          line.classList.remove('interim');
+        } else if (interimText.trim()) {
+          const newLine = document.createElement('div');
+          newLine.className = 'subtitle-line';
+          newLine.textContent = interimText;
+          box.appendChild(newLine);
+        }
+        interimText = '';
+      } else {
+        // interim行を更新
+        let line = box.querySelector('.interim');
+        if (!line) {
+          line = document.createElement('div');
+          line.className = 'subtitle-line interim';
+          box.appendChild(line);
+        }
+        line.textContent = interimText;
       }
-      line.textContent = interimText;
     } else {
       // 確定：interim行を確定行に昇格
       interimText = '';
