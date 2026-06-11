@@ -322,11 +322,7 @@
               output: {
                 language: 'zh'
               }
-            },
-            include: [
-              'translation.text.delta',
-              'translation.text.done'
-            ]
+            }
           }
         }));
 
@@ -372,12 +368,12 @@
         console.log('受信:', msg.type, msg);
 
         // ★ 翻訳テキスト（途中）
-        if (msg.type === 'translation.text.delta' && msg.delta) {
+        if (msg.type === 'session.output_transcript.delta' && msg.delta) {
           addSubtitle(msg.delta, true);
         }
         // ★ 翻訳テキスト（確定）
-        if (msg.type === 'translation.text.done' && msg.text) {
-          addSubtitle(msg.text, false);
+        if (msg.type === 'session.output_transcript.done' && msg.transcript) {
+          addSubtitle(msg.transcript, false);
         }
         // エラー表示
         if (msg.type === 'error') {
