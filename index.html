@@ -318,14 +318,10 @@
         ws.send(JSON.stringify({
           type: 'session.update',
           session: {
-            input_audio_format: 'pcm16',
-            input_language: 'ja',
-            target_language: 'zh',
-            turn_detection: {
-              type: 'server_vad',
-              threshold: 0.5,
-              prefix_padding_ms: 300,
-              silence_duration_ms: 800
+            audio: {
+              output: {
+                language: 'zh'
+              }
             }
           }
         }));
