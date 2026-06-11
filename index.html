@@ -253,16 +253,15 @@
       const hasBreak = breakPoints.some(p => text.includes(p));
 
       if (hasBreak) {
-        // 現在のinterim行を確定
-        const line = box.querySelector('.interim');
-        if (line) {
-          line.classList.remove('interim');
-        } else if (interimText.trim()) {
-          const newLine = document.createElement('div');
-          newLine.className = 'subtitle-line';
-          newLine.textContent = interimText;
-          box.appendChild(newLine);
+        // interim行のテキストを更新してから確定
+        let line = box.querySelector('.interim');
+        if (!line) {
+          line = document.createElement('div');
+          line.className = 'subtitle-line interim';
+          box.appendChild(line);
         }
+        line.textContent = interimText;
+        line.classList.remove('interim');
         interimText = '';
       } else {
         // interim行を更新
