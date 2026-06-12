@@ -1,16 +1,18 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>リアルタイム翻訳字幕 — 東京端</title>
+<title>即時翻譯字幕 — 台灣端</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@100;400&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/opencc-js@1.0.5/dist/umd/full.js"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
   body {
     background: #0f0f0f;
     color: #f0f0f0;
-    font-family: 'Segoe UI', 'Noto Sans JP', 'Meiryo', sans-serif;
+    font-family: 'Noto Sans TC', 'Segoe UI', sans-serif;
     font-weight: 400;
     height: 100vh;
     display: flex;
@@ -162,7 +164,7 @@
 
   .subtitle-line {
     background: rgba(0,0,0,0.6);
-    border-left: 3px solid #ff9f4a;
+    border-left: 3px solid #4a9eff;
     padding: 12px 20px;
     border-radius: 0 8px 8px 0;
     font-size: 30px;
@@ -194,7 +196,7 @@
       <input type="password" id="apiKey" placeholder="sk-..." />
     </div>
     <div class="field" style="max-width:240px">
-      <label>音声入力デバイス</label>
+      <label>音聲輸入裝置</label>
       <select id="deviceSelect"></select>
     </div>
   </div>
@@ -202,7 +204,7 @@
 
 <!-- ── コントロールバー（常に表示） ── -->
 <div id="controlBar">
-  <button id="startBtn">▶ 翻訳開始</button>
+  <button id="startBtn">▶ 開始翻譯</button>
   <button id="stopBtn">■ 停止</button>
   <div id="statusDot"></div>
   <span id="statusText">待機中</span>
@@ -263,7 +265,10 @@
 
   let interimText = '';
   let silenceTimer = null;
-  const SILENCE_THRESHOLD_MS = 1500;
+  const SILENCE_THRESHOLD_MS = 1500; // 1.5秒無音で改行
+
+  // 簡体字→繁体字（台湾）変換器
+  const s2tConverter = OpenCC.Converter({ from: 'cn', to: 'tw' });
 
   function finalizeInterim() {
     const box = document.getElementById('subtitleBox');
@@ -282,6 +287,9 @@
   }
 
   function addSubtitle(text, isInterim = false) {
+    // 受け取ったテキストを繁体字（台湾）に変換
+    text = s2tConverter(text);
+
     const box = document.getElementById('subtitleBox');
 
     if (isInterim) {
@@ -308,6 +316,7 @@
           box.appendChild(line);
         }
         line.textContent = interimText;
+        // 無音タイマーをリセット
         resetSilenceTimer();
       }
     } else {
@@ -369,11 +378,10 @@
       ws.onopen = async () => {
         setStatus('接続完了、マイク起動中...', 'active');
 
-        // ★ 中国語→日本語に翻訳
         ws.send(JSON.stringify({
           type: 'session.update',
           session: {
-            audio: { output: { language: 'ja' } }
+            audio: { output: { language: 'zh' } }
           }
         }));
 
