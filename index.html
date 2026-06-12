@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>即時翻譯字幕 — 台灣端</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@100;400&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/opencc-js@1.0.5/dist/umd/full.js"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -264,7 +265,13 @@
 
   let interimText = '';
 
+  // 簡体字→繁体字（台湾）変換器
+  const s2tConverter = OpenCC.Converter({ from: 'cn', to: 'tw' });
+
   function addSubtitle(text, isInterim = false) {
+    // 受け取ったテキストを繁体字（台湾）に変換
+    text = s2tConverter(text);
+
     const box = document.getElementById('subtitleBox');
 
     if (isInterim) {
