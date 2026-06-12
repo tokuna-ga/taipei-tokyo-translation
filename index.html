@@ -351,16 +351,6 @@
         ws.send(JSON.stringify({
           type: 'session.update',
           session: {
-            instructions: `
-              This is a fan meeting.
-              The speaker is a Japanese actor.
-              Translate naturally for Taiwanese audiences.
-              This is a real-time conversation.
-              Keep translations concise.
-              Do not add explanations.
-              Do not summarize.
-              Translate each utterance as quickly as possible.
-            `,
             audio: { output: { language: 'zh-TW' } }
           }
         }));
