@@ -386,10 +386,10 @@
         }));
 
         mediaStream = await navigator.mediaDevices.getUserMedia({
-          audio: { deviceId: deviceId ? { exact: deviceId } : undefined, sampleRate: 24000 }
+          audio: { deviceId: deviceId ? { exact: deviceId } : undefined, sampleRate: 48000 }
         });
 
-        audioContext = new AudioContext({ sampleRate: 24000 });
+        audioContext = new AudioContext({ sampleRate: 48000 });
         const source = audioContext.createMediaStreamSource(mediaStream);
 
         const workletCode = `
@@ -407,7 +407,13 @@
         workletNode = new AudioWorkletNode(audioContext, 'pcm-processor');
         workletNode.port.onmessage = (e) => {
           if (ws && ws.readyState === WebSocket.OPEN) {
-            const pcm = float32ToPCM16(e.data);
+            // 48kHz → 24kHz にダウンサンプリング（2サンプルに1つ取る）
+            const input = e.data;
+            const downsampled = new Float32Array(Math.floor(input.length / 2));
+            for (let i = 0; i < downsampled.length; i++) {
+              downsampled[i] = input[i * 2];
+            }
+            const pcm = float32ToPCM16(downsampled);
             ws.send(JSON.stringify({
               type: 'session.input_audio_buffer.append',
               audio: arrayBufferToBase64(pcm)
